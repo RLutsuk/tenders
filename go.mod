@@ -5,7 +5,6 @@ go 1.22.4
 require (
 	github.com/go-openapi/strfmt v0.23.0
 	github.com/labstack/echo v3.3.10+incompatible
-	github.com/labstack/echo/v4 v4.12.0
 	github.com/pkg/errors v0.9.1
 	gorm.io/driver/postgres v1.5.9
 	gorm.io/gorm v1.25.12

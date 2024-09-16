@@ -40,39 +40,74 @@ func (delivery *Delivery) createBid(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
 	}
-	return c.JSON(http.StatusOK, bid) //почему здесь 200, а не 201
+	return c.JSON(http.StatusOK, bid)
 
 }
 
-// func (delivery *Delivery) getStatusBid(c echo.Context) error {
-// 	var bid models.Bid
-// 	bid.Id = c.Param("bidId")
-// 	username := c.QueryParam("username")
+func (delivery *Delivery) getStatusBid(c echo.Context) error {
+	bidId := c.Param("bidId")
+	username := c.QueryParam("username")
 
-// 	status, err := delivery.BidUC.GetStatusBid(&bid, username)
+	status, err := delivery.BidUC.GetStatusBid(bidId, username)
 
-// 	if err != nil {
-// 		switch {
-// 		case errors.Is(err, models.ErrUserNotPermission):
-// 			c.Logger().Error(err)
-// 			return echo.NewHTTPError(http.StatusForbidden, models.ErrUserNotPermission.Error())
-// 		case errors.Is(err, models.ErrUserInvalid):
-// 			c.Logger().Error(err)
-// 			return echo.NewHTTPError(http.StatusUnauthorized, models.ErrUserInvalid.Error())
-// 		case errors.Is(err, models.ErrBadData):
-// 			c.Logger().Error(err)
-// 			return echo.NewHTTPError(http.StatusBadRequest, models.ErrBadData.Error())
-// 		case errors.Is(err, models.ErrTenderNotFound):
-// 			c.Logger().Error(err)
-// 			return echo.NewHTTPError(http.StatusNotFound, models.ErrBidNotFound.Error())
-// 		default:
-// 			c.Logger().Error(err)
-// 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-// 		}
-// 	}
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrUserNotPermission):
+			c.Logger().Error(err)
+			return echo.NewHTTPError(http.StatusForbidden, models.ErrUserNotPermission.Error())
+		case errors.Is(err, models.ErrUserInvalid):
+			c.Logger().Error(err)
+			return echo.NewHTTPError(http.StatusUnauthorized, models.ErrUserInvalid.Error())
+		case errors.Is(err, models.ErrBadData):
+			c.Logger().Error(err)
+			return echo.NewHTTPError(http.StatusBadRequest, models.ErrBadData.Error())
+		case errors.Is(err, models.ErrBidNotFound):
+			c.Logger().Error(err)
+			return echo.NewHTTPError(http.StatusNotFound, models.ErrBidNotFound.Error())
+		default:
+			c.Logger().Error(err)
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		}
+	}
 
-// 	return c.JSON(http.StatusOK, status)
-// }
+	return c.JSON(http.StatusOK, status)
+}
+
+func (delivery *Delivery) updateStatusBid(c echo.Context) error {
+	var bid models.Bid
+	bid.Id = c.Param("bidId")
+	username := c.QueryParam("username")
+	bid.Status = c.QueryParam("status")
+
+	if bid.Status != models.CANCELEDBID && bid.Status != models.CREATEDBID && bid.Status != models.PUBLISHEDBID {
+		c.Logger().Error(models.ErrBadData)
+		return echo.NewHTTPError(http.StatusBadRequest, models.ErrBadData.Error())
+	}
+
+	err := delivery.BidUC.UpdateStatusBid(&bid, username)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrUserNotPermission):
+			c.Logger().Error(err)
+			return echo.NewHTTPError(http.StatusForbidden, models.ErrUserNotPermission.Error())
+		case errors.Is(err, models.ErrUserInvalid):
+			c.Logger().Error(err)
+			return echo.NewHTTPError(http.StatusUnauthorized, models.ErrUserInvalid.Error())
+		case errors.Is(err, models.ErrBadData):
+			c.Logger().Error(err)
+			return echo.NewHTTPError(http.StatusBadRequest, models.ErrBadData.Error())
+		case errors.Is(err, models.ErrBidNotFound):
+			c.Logger().Error(err)
+			return echo.NewHTTPError(http.StatusNotFound, models.ErrBidNotFound.Error())
+		default:
+			c.Logger().Error(err)
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		}
+	}
+
+	return c.JSON(http.StatusOK, bid)
+}
 
 func (delivery *Delivery) updateBid(c echo.Context) error {
 	var bid models.Bid
@@ -82,11 +117,6 @@ func (delivery *Delivery) updateBid(c echo.Context) error {
 	}
 	bid.Id = c.Param("bidId")
 	username := c.QueryParam("username")
-
-	if bid.AuthorType != "Organization" && bid.AuthorType != "User" {
-		c.Logger().Error(models.ErrBadData)
-		return echo.NewHTTPError(http.StatusBadRequest, models.ErrBadData.Error())
-	}
 
 	err := delivery.BidUC.UpdateBid(&bid, username)
 
@@ -101,9 +131,9 @@ func (delivery *Delivery) updateBid(c echo.Context) error {
 		case errors.Is(err, models.ErrBadData):
 			c.Logger().Error(err)
 			return echo.NewHTTPError(http.StatusBadRequest, models.ErrBadData.Error())
-		case errors.Is(err, models.ErrTenderNotFound):
+		case errors.Is(err, models.ErrBidNotFound):
 			c.Logger().Error(err)
-			return echo.NewHTTPError(http.StatusNotFound, models.ErrTenderNotFound.Error())
+			return echo.NewHTTPError(http.StatusNotFound, models.ErrBidNotFound.Error())
 		default:
 			c.Logger().Error(err)
 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -206,7 +236,7 @@ func (delivery *Delivery) selectBidsByTender(c echo.Context) error {
 
 func (delivery *Delivery) submitDecision(c echo.Context) error {
 	var bid models.Bid
-	bid.Id = c.Param("bidId ")
+	bid.Id = c.Param("bidId")
 	decision := c.QueryParam("decision")
 	username := c.QueryParam("username")
 
@@ -227,9 +257,9 @@ func (delivery *Delivery) submitDecision(c echo.Context) error {
 		case errors.Is(err, models.ErrBadData):
 			c.Logger().Error(err)
 			return echo.NewHTTPError(http.StatusBadRequest, models.ErrBadData.Error())
-		case errors.Is(err, models.ErrTenderNotFound):
+		case errors.Is(err, models.ErrBidNotFound):
 			c.Logger().Error(err)
-			return echo.NewHTTPError(http.StatusNotFound, models.ErrTenderNotFound.Error())
+			return echo.NewHTTPError(http.StatusNotFound, models.ErrBidNotFound.Error())
 		default:
 			c.Logger().Error(err)
 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -244,8 +274,8 @@ func NewDelivery(e *echo.Group, bidUC bidUsecase.UseCaseI) {
 		BidUC: bidUC,
 	}
 	e.POST("/bids/new", handler.createBid)
-	// e.GET("/bids/:bidId/status", handler.getStatusBid)
-	// e.PUT("/bids/:bidId/status", handler.updateStatusBid) // доделать
+	e.GET("/bids/:bidId/status", handler.getStatusBid)
+	e.PUT("/bids/:bidId/status", handler.updateStatusBid)
 	e.PATCH("/bids/:bidId/edit", handler.updateBid)
 	e.GET("/bids/my", handler.selectBidsByUsername)
 	e.GET("/bids/:tenderId/list", handler.selectBidsByTender)

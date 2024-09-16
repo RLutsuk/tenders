@@ -72,7 +72,7 @@ func (uc *useCase) validateTender(tender *models.Tender) error {
 		return models.ErrBadData
 	}
 
-	if tender.ServiceType != models.DELIVERY && tender.ServiceType != models.CONSTRUCTION && tender.ServiceType != models.MANUFACTURE {
+	if tender.ServiceType != models.DELIVERY && tender.ServiceType != models.CONSTRUCTION && tender.ServiceType != models.MANUFACTURE && tender.ServiceType != "" {
 		return models.ErrBadData
 	}
 
@@ -80,11 +80,6 @@ func (uc *useCase) validateTender(tender *models.Tender) error {
 }
 
 func (uc *useCase) GetStatusTender(tender models.Tender) (string, error) {
-	err := uc.validateTender(&tender)
-	if err != nil {
-		return tender.Status, err
-	}
-
 	user, err := uc.userRepository.SelectUserByUsername(tender.CreatorUsername)
 	if err != nil {
 		return tender.Status, models.ErrUserInvalid
@@ -105,11 +100,6 @@ func (uc *useCase) GetStatusTender(tender models.Tender) (string, error) {
 }
 
 func (uc *useCase) UpdateStatusTender(tender *models.Tender) error {
-	err := uc.validateTender(tender)
-	if err != nil {
-		return err
-	}
-
 	user, err := uc.userRepository.SelectUserByUsername(tender.CreatorUsername)
 	if err != nil {
 		return models.ErrUserInvalid
@@ -201,9 +191,14 @@ func (uc *useCase) SelectTenders(limit, offset int, service_type string) ([]*mod
 }
 
 func (uc *useCase) SelectTendersByUsername(limit, offset int, username string) ([]*models.Tender, error) {
-	_, err := uc.userRepository.SelectUserByUsername(username)
+	user, err := uc.userRepository.SelectUserByUsername(username)
 	if err != nil {
 		return nil, models.ErrUserInvalid
+	}
+
+	exist, err := uc.userRepository.CheckUserIsWorkerOrganization(user.Id)
+	if err != nil || !exist {
+		return nil, models.ErrUserNotPermission
 	}
 
 	tenders, err := uc.tenderRepository.SelectTendersByUsername(limit, offset, username)

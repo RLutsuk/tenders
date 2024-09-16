@@ -12,11 +12,12 @@ import (
 
 type UseCaseI interface {
 	CreateBid(bid *models.Bid) error
-	// GetStatusBid(bid *models.Bid, username string) (string, error)
-	UpdateBid(bid *models.Bid, username string) error
+	GetStatusBid(bidId string, username string) (string, error)
 	SelectBidsByUsername(limit, offset int, username string) ([]*models.Bid, error)
 	SelectBidsByTenderId(limit, offset int, username string, tenderId string) ([]*models.Bid, error)
 	SubmitDecision(bid *models.Bid, username, decision string) error
+	UpdateBid(bid *models.Bid, username string) error
+	UpdateStatusBid(bid *models.Bid, username string) error
 }
 
 type useCase struct {
@@ -43,7 +44,7 @@ func (uc *useCase) CreateBid(bid *models.Bid) error {
 		return models.ErrTenderNotFound
 	}
 
-	if existTender.Status != models.PUBLISHEDTEN { //если тендер закрыт ошибка такая же как и при его создании участником вне организации
+	if existTender.Status != models.PUBLISHEDTEN {
 		return models.ErrUserNotPermission
 	}
 
@@ -65,19 +66,49 @@ func (uc *useCase) CreateBid(bid *models.Bid) error {
 }
 
 // modify
-// func (uc *useCase) GetStatusBid(bid *models.Bid, username string) (string, error) {
-// 	user, err := uc.userRepository.SelectUserByUsername(username)
-// 	if err != nil {
-// 		return "", models.ErrUserInvalid
-// 	}
+func (uc *useCase) GetStatusBid(bidId, username string) (string, error) {
+	user, err := uc.userRepository.SelectUserByUsername(username)
+	if err != nil {
+		return "", models.ErrUserInvalid
+	}
 
-// 	existBid, err := uc.bidRepository.SelectBidById(bid.Id)
-// 	if err != nil {
-// 		return "", models.ErrBidNotFound
-// 	}
+	existBid, err := uc.bidRepository.SelectBidById(bidId)
+	if err != nil {
+		return "", models.ErrBidNotFound
+	}
 
-// 	return existBid.Status, nil
-// }
+	if existBid.AuthorID != user.Id {
+		return "", models.ErrUserNotPermission
+	}
+	return existBid.Status, nil
+}
+
+func (uc *useCase) UpdateStatusBid(bid *models.Bid, username string) error {
+	user, err := uc.userRepository.SelectUserByUsername(username)
+	if err != nil {
+		return models.ErrUserInvalid
+	}
+
+	existBid, err := uc.bidRepository.SelectBidById(bid.Id)
+	if err != nil {
+		return models.ErrBidNotFound
+	}
+
+	if existBid.AuthorID != user.Id {
+		return models.ErrUserNotPermission
+	}
+
+	bid.Version = existBid.Version + 1
+	err = uc.bidRepository.UpdateStatusBid(*bid)
+	if err != nil {
+		return models.ErrBadData
+	}
+	bid.Name = existBid.Name
+	bid.AuthorType = existBid.AuthorType
+	bid.AuthorID = existBid.AuthorID
+	bid.Version = existBid.Version
+	return nil
+}
 
 func (uc *useCase) UpdateBid(bid *models.Bid, username string) error {
 	err := uc.validateBid(bid)
@@ -123,12 +154,12 @@ func (uc *useCase) UpdateBid(bid *models.Bid, username string) error {
 }
 
 func (uc *useCase) SelectBidsByUsername(limit, offset int, username string) ([]*models.Bid, error) {
-	_, err := uc.userRepository.SelectUserByUsername(username)
+	user, err := uc.userRepository.SelectUserByUsername(username)
 	if err != nil {
 		return nil, models.ErrUserInvalid
 	}
 
-	bids, err := uc.bidRepository.SelectBidsByUsername(limit, offset, username)
+	bids, err := uc.bidRepository.SelectBidsByUserId(limit, offset, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -197,6 +228,11 @@ func (uc *useCase) SubmitDecision(bid *models.Bid, username, decision string) er
 		}
 	}
 
+	bid.Name = existBid.Name
+	bid.Status = existBid.Name
+	bid.AuthorType = existBid.AuthorType
+	bid.AuthorID = existBid.AuthorID
+	bid.Version = existBid.Version
 	return nil
 
 }
@@ -210,7 +246,7 @@ func (uc *useCase) validateBid(bid *models.Bid) error {
 		return models.ErrBadData
 	}
 
-	if bid.AuthorType != "User" && bid.AuthorType != "Organization" {
+	if bid.AuthorType != "User" && bid.AuthorType != "Organization" && bid.AuthorType != "" {
 		return models.ErrBadData
 	}
 

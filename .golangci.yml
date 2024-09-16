@@ -1,0 +1,18 @@
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - goconst
+    - gocyclo
+    - errcheck
+    - unused
+    - ineffassign
+    - gosimple
+
+run:
+  timeout: 5m
+
+output:
+  formats: colored-line-number
+  print-issued-lines: true
+  sort-results: true

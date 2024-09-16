@@ -46,7 +46,6 @@ func (delivery *Delivery) getStatusTender(c echo.Context) error {
 	var tender models.Tender
 	tender.Id = c.Param("tenderId")
 	tender.CreatorUsername = c.QueryParam("username")
-
 	status, err := delivery.TenderUC.GetStatusTender(tender)
 
 	if err != nil {
@@ -117,7 +116,12 @@ func (delivery *Delivery) updateTender(c echo.Context) error {
 	tender.Id = c.Param("tenderId")
 	tender.CreatorUsername = c.QueryParam("username")
 
-	if tender.Status != models.CREATEDTEN && tender.Status != models.CLOSEDTEN && tender.Status != models.PUBLISHEDTEN {
+	if tender.Status != models.CREATEDTEN && tender.Status != models.CLOSEDTEN && tender.Status != models.PUBLISHEDTEN && tender.Status != "" {
+		c.Logger().Error(models.ErrBadData)
+		return echo.NewHTTPError(http.StatusBadRequest, models.ErrBadData.Error())
+	}
+
+	if tender.ServiceType != models.DELIVERY && tender.ServiceType != models.CONSTRUCTION && tender.ServiceType != models.MANUFACTURE && tender.ServiceType != "" {
 		c.Logger().Error(models.ErrBadData)
 		return echo.NewHTTPError(http.StatusBadRequest, models.ErrBadData.Error())
 	}

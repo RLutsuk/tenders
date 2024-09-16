@@ -44,8 +44,6 @@ func main() {
 			postgresHost, postgresUser, postgresPassword, postgresDB, postgresPort)
 	}
 
-	// var cfgPg = postgres.Config{DSN: config}
-	// db, err := gorm.Open(postgres.New(cfgPg), &gorm.Config{})
 	db, err := gorm.Open(postgres.Open(config), &gorm.Config{})
 
 	if err != nil {
