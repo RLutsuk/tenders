@@ -8,4 +8,6 @@ var (
 	ErrBadData           = errors.New("bad data")
 	ErrTenderNotFound    = errors.New("Tender not found")
 	ErrBidNotFound       = errors.New("Bid not found")
+	ErrBidWasRejected    = errors.New("Bid was rejected or closed")
+	ErrUserHasmadeDecision = errors.New("the user has already made a decision")
 )

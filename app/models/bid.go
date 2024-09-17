@@ -19,3 +19,11 @@ type Bid struct {
 	Version     uint32          `json:"version,omitempty" gorm:"column:version"`
 	Created     strfmt.DateTime `json:"createdAt,omitempty" gorm:"column:created_at"`
 }
+
+type Decision struct {
+	Id       string          `gorm:"column:id;type:uuid;default:uuid_generate_v4()"`
+	BidId    string          `gorm:"column:bid_id"`
+	UserName string          `gorm:"column:user_name"`
+	Decision string          `gorm:"column:decision"`
+	Created  strfmt.DateTime `gorm:"column:created_at"`
+}

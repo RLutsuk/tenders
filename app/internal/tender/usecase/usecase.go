@@ -46,9 +46,9 @@ func (uc *useCase) CreateTender(tender *models.Tender) error {
 		return models.ErrUserNotPermission
 	}
 
-	tender.Version = 1 // потому что создание
+	tender.Version = 1
 	tender.Status = models.CREATEDTEN
-	tender.Created = strfmt.DateTime(time.Now()) // по хорошему спросить у чата гпт как работает тут горм и зачем тут strfmt.DateTime
+	tender.Created = strfmt.DateTime(time.Now())
 
 	err = uc.tenderRepository.CreateTender(tender)
 	if err != nil {

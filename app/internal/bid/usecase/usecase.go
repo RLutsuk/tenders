@@ -65,7 +65,6 @@ func (uc *useCase) CreateBid(bid *models.Bid) error {
 	return nil
 }
 
-// modify
 func (uc *useCase) GetStatusBid(bidId, username string) (string, error) {
 	user, err := uc.userRepository.SelectUserByUsername(username)
 	if err != nil {
@@ -183,7 +182,7 @@ func (uc *useCase) SelectBidsByTenderId(limit, offset int, username string, tend
 		return nil, models.ErrTenderNotFound
 	}
 
-	exist, err := uc.userRepository.CheckUserOrganization(user.Id, existTender.OrganizationId) //проверить, что достаются нужные данные
+	exist, err := uc.userRepository.CheckUserOrganization(user.Id, existTender.OrganizationId)
 	if err != nil || !exist {
 		return nil, models.ErrUserNotPermission
 	}
@@ -210,6 +209,9 @@ func (uc *useCase) SubmitDecision(bid *models.Bid, username, decision string) er
 	if err != nil {
 		return models.ErrBidNotFound
 	}
+	if existBid.Status == "Canceled" {
+		return models.ErrBidWasRejected
+	}
 
 	existTender, err := uc.tenderRepository.SelectTenderById(existBid.TenderId)
 	if err != nil {
@@ -221,20 +223,51 @@ func (uc *useCase) SubmitDecision(bid *models.Bid, username, decision string) er
 		return models.ErrUserNotPermission
 	}
 
-	if decision == "Approved" {
-		err := uc.tenderRepository.ClosedСonfirmedTender(existTender.Id)
-		if err != nil {
-			return err
-		}
-	}
-
 	bid.Name = existBid.Name
 	bid.Status = existBid.Name
 	bid.AuthorType = existBid.AuthorType
 	bid.AuthorID = existBid.AuthorID
 	bid.Version = existBid.Version
-	return nil
 
+	var decisionBid models.Decision
+	decisionBid.BidId = bid.Id
+	decisionBid.UserName = username
+	decisionBid.Decision = decision
+	decisionBid.Created = strfmt.DateTime(time.Now())
+
+	if decision == "Rejected" {
+		err := uc.bidRepository.RejectBidByTenderID(*existBid)
+		if err != nil {
+			return err
+		}
+
+		_, err = uc.bidRepository.BidDecisions(decisionBid)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	numOfApprov, err := uc.bidRepository.BidDecisions(decisionBid)
+	if err != nil {
+		return err
+	}
+
+	if numOfApprov >= 3 {
+		err := uc.tenderRepository.ClosedСonfirmedTender(existTender.Id)
+		if err != nil {
+			return err
+		}
+	} else if numOfUserResponsible, err := uc.userRepository.CheckUserResponsOrgByOrgId(existTender.OrganizationId); numOfUserResponsible == numOfApprov {
+		if err != nil {
+			return err
+		}
+		err = uc.tenderRepository.ClosedСonfirmedTender(existTender.Id)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (uc *useCase) validateBid(bid *models.Bid) error {

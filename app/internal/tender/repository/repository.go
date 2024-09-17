@@ -37,7 +37,6 @@ func (dbTender *dataBase) CreateTender(tender *models.Tender) error {
 
 func (dbTender *dataBase) SelectTenderById(tenderId string) (*models.Tender, error) {
 	tender := models.Tender{}
-
 	tx := dbTender.db.Table("tender").Where("id = ?", tenderId).Take(&tender)
 	if tx.Error != nil {
 		return nil, errors.Wrap(tx.Error, "database error (table tender)")
@@ -142,6 +141,9 @@ func (dbTender *dataBase) ClosedСonfirmedTender(tenderId string) error {
 	if tx.Error != nil {
 		return errors.Wrap(tx.Error, "database error (table tender)")
 	}
-
+	tx = dbTender.db.Table("tender").Where("id = ?", tenderId).UpdateColumn("version", gorm.Expr("version + ?", 1))
+	if tx.Error != nil {
+		return errors.Wrap(tx.Error, "database error (table tender)")
+	}
 	return nil
 }

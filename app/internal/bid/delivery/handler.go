@@ -260,12 +260,20 @@ func (delivery *Delivery) submitDecision(c echo.Context) error {
 		case errors.Is(err, models.ErrBidNotFound):
 			c.Logger().Error(err)
 			return echo.NewHTTPError(http.StatusNotFound, models.ErrBidNotFound.Error())
+		case errors.Is(err, models.ErrBidWasRejected):
+			c.Logger().Error(err)
+			return echo.NewHTTPError(http.StatusConflict, models.ErrBidWasRejected.Error())
+		case errors.Is(err, models.ErrUserHasmadeDecision):
+			c.Logger().Error(err)
+			return echo.NewHTTPError(http.StatusConflict, models.ErrUserHasmadeDecision.Error())
 		default:
 			c.Logger().Error(err)
 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
 	}
-
+	if decision == "Rejected" {
+		return c.JSON(http.StatusOK, "The bid was rejected")
+	}
 	return c.JSON(http.StatusOK, bid)
 }
 

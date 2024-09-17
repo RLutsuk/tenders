@@ -8,10 +8,12 @@ import (
 )
 
 type RepositoryI interface {
+	BidDecisions(decisionBid models.Decision) (int, error)
 	CreateBid(bid *models.Bid) error
 	SelectBidById(bidId string) (*models.Bid, error)
 	SelectBidsByUserId(limit, offset int, userId string) ([]*models.Bid, error)
 	SelectBidsByTederId(limit, offset int, username, tenderId string) ([]*models.Bid, error)
+	RejectBidByTenderID(bid models.Bid) error
 	UpdateBid(bid models.Bid) error
 	UpdateStatusBid(bid models.Bid) error
 }
@@ -24,6 +26,26 @@ func New(db *gorm.DB) RepositoryI {
 	return &dataBase{
 		db: db,
 	}
+}
+
+func (dbBid *dataBase) BidDecisions(decisionBid models.Decision) (int, error) {
+	var countOfFindStr int64
+	tx := dbBid.db.Table("decisions").Where("bid_id = ? AND user_name = ?", decisionBid.BidId, decisionBid.UserName).Count(&countOfFindStr)
+	if tx.Error != nil {
+		return 0, errors.Wrap(tx.Error, "database error (table decisions)")
+	}
+	if countOfFindStr > 0 {
+		return 0, models.ErrUserHasmadeDecision
+	}
+	tx = dbBid.db.Table("decisions").Create(&decisionBid)
+	if tx.Error != nil {
+		return 0, errors.Wrap(tx.Error, "database error (table decisions)")
+	}
+	tx = dbBid.db.Table("decisions").Where("bid_id = ?", decisionBid.BidId)
+	if tx.Error != nil {
+		return 0, errors.Wrap(tx.Error, "database error (table decisions)")
+	}
+	return int(tx.RowsAffected), nil
 }
 
 func (dbBid *dataBase) CreateBid(bid *models.Bid) error {
@@ -112,15 +134,28 @@ func (dbBid *dataBase) SelectBidsByUserId(limit, offset int, userId string) ([]*
 func (dbBid *dataBase) SelectBidsByTederId(limit, offset int, username, tenderId string) ([]*models.Bid, error) {
 	bids := make([]*models.Bid, 0, limit)
 	if offset != 0 {
-		tx := dbBid.db.Table("bid").Offset(offset).Limit(limit).Where("tender_id = ?", tenderId).Order("name asc").Find(&bids)
+		tx := dbBid.db.Table("bid").Offset(offset).Limit(limit).Where("tender_id = ? AND status != ?", tenderId, "Canceled").Order("name asc").Find(&bids)
 		if tx.Error != nil {
 			return nil, errors.Wrap(tx.Error, "database error (table bid)")
 		}
 	} else {
-		tx := dbBid.db.Table("bid").Limit(limit).Where("tender_id = ?", tenderId).Order("name asc").Find(&bids)
+		tx := dbBid.db.Table("bid").Limit(limit).Where("tender_id = ? AND status != ?", tenderId, "Canceled").Order("name asc").Find(&bids)
 		if tx.Error != nil {
 			return nil, errors.Wrap(tx.Error, "database error (table bid)")
 		}
 	}
 	return bids, nil
+}
+
+func (dbBid *dataBase) RejectBidByTenderID(bid models.Bid) error {
+	tx := dbBid.db.Table("bid").Where("id = ?", bid.Id).Update("status", "Canceled")
+	if tx.Error != nil {
+		return errors.Wrap(tx.Error, "database error (table bid)")
+	}
+	tx = dbBid.db.Table("bid").Where("id = ?", bid.Id).Update("version", bid.Version)
+	if tx.Error != nil {
+		return errors.Wrap(tx.Error, "database error (table bid)")
+	}
+
+	return nil
 }

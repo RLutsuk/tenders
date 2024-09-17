@@ -13,6 +13,7 @@ type RepositoryI interface {
 	SelectUserById(userId string) (*models.User, error)
 	CheckUserOrganization(userId, organizationId string) (bool, error)
 	CheckUserIsWorkerOrganization(userId string) (bool, error)
+	CheckUserResponsOrgByOrgId(organizationId string) (int, error)
 }
 
 type dataBase struct {
@@ -69,4 +70,12 @@ func (dbUser *dataBase) CheckUserIsWorkerOrganization(userId string) (bool, erro
 	}
 
 	return exist, nil
+}
+
+func (dbUser *dataBase) CheckUserResponsOrgByOrgId(organizationId string) (int, error) {
+	tx := dbUser.db.Table("organization_responsible").Where("organization_id = ?", organizationId)
+	if tx.Error != nil {
+		return 0, errors.Wrap(tx.Error, "database error (table organization_responsible)")
+	}
+	return int(tx.RowsAffected), nil
 }
